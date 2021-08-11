@@ -21,7 +21,22 @@ exports.getUsers = async (req, res, next) => {
   }
 };
 
-exports.getUserProfile = async (req, res, next) => {
+exports.getUserProfileById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await UserService.getUserByCriteria({ id });
+    if (!user) {
+      throw new BaseError('There is no user with this id!', 400);
+    }
+
+    return res.send(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getUserProfileByUsername = async (req, res, next) => {
   try {
     const { username } = req;
 
@@ -189,6 +204,30 @@ exports.getFriendship = async (req, res, next) => {
     }
 
     return res.send(friendship);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.editUser = async (req, res, next) => {
+  try {
+    const { userId } = req;
+    const data = req.body;
+
+    const user = await UserService.getUserByCriteria({
+      id: userId,
+    });
+
+    if (!user) {
+      throw new BaseError('User not found', 400);
+    }
+
+    for (const property in data) {
+      user[property] = data[property];
+    }
+    await user.save();
+
+    return res.send();
   } catch (error) {
     next(error);
   }

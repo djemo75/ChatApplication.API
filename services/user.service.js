@@ -2,6 +2,7 @@ const db = require('../models');
 const { Op } = require('sequelize');
 const User = db.users;
 const Friendship = db.friendships;
+const Resource = db.resources;
 
 exports.getUsers = async ({
   pageSize,
@@ -10,54 +11,6 @@ exports.getUsers = async ({
   userId,
 }) => {
   try {
-    // const users = await Friendship.findAndCountAll({
-    //   offset: pageNumber * pageSize,
-    //   limit: pageSize,
-    //   attributes: ['isRequestAccepted'],
-    //   include: [
-    //     {
-    //       model: User,
-    //       as: 'requester',
-
-    //       required: false,
-    //       attributes: ['id', 'username', 'email', 'createdAt'],
-    //       where: {
-    //         // id: {
-    //         //   [Op.not]: userId,
-    //         // },
-    //         [Op.or]: {
-    //           username: {
-    //             [Op.like]: `%${searchString}%`,
-    //           },
-    //           email: {
-    //             [Op.like]: `%${searchString}%`,
-    //           },
-    //         },
-    //       },
-    //     },
-    //     {
-    //       model: User,
-    //       as: 'addressee',
-
-    //       required: false,
-    //       attributes: ['id', 'username', 'email', 'createdAt'],
-    //       where: {
-    //         // id: {
-    //         //   [Op.not]: userId,
-    //         // },
-    //         [Op.or]: {
-    //           username: {
-    //             [Op.like]: `%${searchString}%`,
-    //           },
-    //           email: {
-    //             [Op.like]: `%${searchString}%`,
-    //           },
-    //         },
-    //       },
-    //     },
-    //   ],
-    // });
-
     const users = await User.findAndCountAll({
       where: {
         id: {
@@ -100,6 +53,10 @@ exports.getUsers = async ({
           },
           required: false,
         },
+        {
+          model: Resource,
+          as: 'avatar',
+        },
       ],
     }).then((data) => {
       return {
@@ -110,6 +67,7 @@ exports.getUsers = async ({
           email: row.email,
           createdAt: row.createdAt,
           friendship: row.addressee || row.requester,
+          avatar: row.avatar,
         })),
       };
     });
@@ -120,9 +78,24 @@ exports.getUsers = async ({
   }
 };
 
-exports.getUserByCriteria = async (criteria) => {
+exports.getUserByCriteria = async (criteria, includeSecretData) => {
   try {
-    return await User.findOne({ where: criteria });
+    return await User.findOne({
+      where: criteria,
+      attributes: {
+        exclude: includeSecretData ? [] : ['refreshToken', 'password'],
+      },
+      include: [
+        {
+          model: Resource,
+          as: 'avatar',
+        },
+        {
+          model: Resource,
+          as: 'cover',
+        },
+      ],
+    });
   } catch (e) {
     throw Error(e);
   }
@@ -205,14 +178,26 @@ exports.getUserFriends = async (
         {
           model: User,
           as: 'addressee',
-          attributes: ['id', 'username', 'email', 'isOnline'],
+          attributes: ['id', 'username', 'email', 'isOnline', 'lastOnlineDate'],
           where: userWhereConditions,
+          include: [
+            {
+              model: Resource,
+              as: 'avatar',
+            },
+          ],
         },
         {
           model: User,
           as: 'requester',
-          attributes: ['id', 'username', 'email', 'isOnline'],
+          attributes: ['id', 'username', 'email', 'isOnline', 'lastOnlineDate'],
           where: userWhereConditions,
+          include: [
+            {
+              model: Resource,
+              as: 'avatar',
+            },
+          ],
         },
       ],
     });
@@ -234,6 +219,8 @@ exports.getUserFriends = async (
           username: row.requester.username,
           email: row.requester.email,
           isOnline: row.requester.isOnline,
+          avatar: row.requester.avatar,
+          lastOnlineDate: row.requester.lastOnlineDate,
         };
       } else {
         modifiedRow = {
@@ -242,6 +229,8 @@ exports.getUserFriends = async (
           username: row.addressee.username,
           email: row.addressee.email,
           isOnline: row.addressee.isOnline,
+          avatar: row.addressee.avatar,
+          lastOnlineDate: row.addressee.lastOnlineDate,
         };
       }
 

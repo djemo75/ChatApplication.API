@@ -1,4 +1,5 @@
 const UserService = require('../services/user.service');
+const MessageService = require('../services/message.service');
 const BaseError = require('../models/baseError.model');
 
 let onlineUsers = [];
@@ -12,16 +13,17 @@ const applyEvents = (io) => {
     socket.on('user:setStatusToOnline', async () => {
       const user = await UserService.getUserByCriteria({ id: userId });
       user.isOnline = true;
+      user.lastOnlineDate = new Date();
       await user.save();
       await sendFriendListToOnlineUsers(io, onlineUsers);
     });
 
-    socket.on('user:fetchFriends', async (data) => {
+    socket.on('user:fetchFriends', async () => {
       const onlineFriends = await UserService.getUserFriends(userId, true);
       await socket.emit('user:fetchFriends', onlineFriends);
     });
 
-    socket.on('user:fetchFriendRequests', async (data) => {
+    socket.on('user:fetchFriendRequests', async () => {
       const requests = await UserService.getUserFriends(
         userId,
         false,
@@ -31,6 +33,7 @@ const applyEvents = (io) => {
       await socket.emit('user:fetchFriendRequests', requests);
     });
 
+    // Friendship actions
     socket.on('sendFriendRequest', async (data, callback) => {
       try {
         const addresseeId = Number(data.id);
@@ -241,34 +244,82 @@ const applyEvents = (io) => {
       }
     });
 
+    // Messages
+    socket.on('message:create', async (data, callback) => {
+      try {
+        const addresseeId = Number(data.id);
+        const { messageType, content, resourceId } = data;
+
+        const user = await UserService.getUserByCriteria({ id: addresseeId });
+        if (!user) {
+          throw new BaseError('There is no user with this id!', 400);
+        }
+
+        if (!['text', 'audio', 'image'].includes(messageType)) {
+          throw new BaseError('Please provide correct message type!', 400);
+        }
+
+        if (messageType === 'text' && !content) {
+          throw new BaseError('Please provide content!', 400);
+        }
+
+        if (['image', 'audio'].includes(messageType) && !resourceId) {
+          throw new BaseError('Please provide resource id!', 400);
+        }
+
+        const message = {
+          messageType,
+          content,
+          requesterId: userId,
+          addresseeId,
+          resourceId,
+        };
+
+        const result = await MessageService.createMessage(message);
+
+        const currentOnlineUser = onlineUsers.find(
+          (onlineUser) => onlineUser.userId === addresseeId
+        );
+        if (currentOnlineUser) {
+          const myProfile = await UserService.getUserByCriteria({ id: userId });
+          await io
+            .to(currentOnlineUser.socketId)
+            .emit('message:receive', { user: myProfile, message: result });
+        }
+
+        callback({ message: result, statusCode: 'ok' });
+      } catch (error) {
+        callback(error);
+      }
+    });
+
     socket.on('disconnect', async () => {
       onlineUsers = onlineUsers.filter(
         (onlineUser) => onlineUser.userId !== userId
       );
       const user = await UserService.getUserByCriteria({ id: userId });
       user.isOnline = false;
+      user.lastOnlineDate = new Date();
       await user.save();
       await sendFriendListToOnlineUsers(io, onlineUsers);
     });
-  });
-};
 
-const sendFriendListToOnlineUsers = async (io, onlineUsers) => {
-  // send the list only to my friends
-  await onlineUsers
-    // .filter(
-    //   (onlineUser) =>
-    //     myOnlineFriends.find(
-    //       (myOnlineUser) => myOnlineUser.user.id === onlineUser.userId
-    //     )
-    // )
-    .forEach(async (onlineUser) => {
-      const onlineFriends = await UserService.getUserFriends(
-        onlineUser.userId,
-        true
-      );
-      await io.to(onlineUser.socketId).emit('user:fetchFriends', onlineFriends);
-    });
+    const sendFriendListToOnlineUsers = async (io, onlineUsers) => {
+      // send the list only to my friends
+      await onlineUsers.forEach(async (onlineUser) => {
+        const onlineFriends = await UserService.getUserFriends(
+          onlineUser.userId,
+          true
+        );
+
+        if (onlineFriends.some((friend) => friend.id === userId)) {
+          await io
+            .to(onlineUser.socketId)
+            .emit('user:fetchFriends', onlineFriends);
+        }
+      });
+    };
+  });
 };
 
 module.exports = applyEvents;

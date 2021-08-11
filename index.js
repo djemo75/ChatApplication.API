@@ -6,10 +6,11 @@ const db = require('./models');
 const applySocketEvents = require('./socket/events');
 
 require('dotenv').config();
+global.__basedir = __dirname;
 
 const port = process.env.PORT || 5000;
 const app = express();
-db.sequelize.sync({ force: false, alter: false });
+db.sequelize.sync({ force: false, alter: true });
 
 // Rest api server
 const corsOptions = { origin: 'http://localhost:3000' };
@@ -25,6 +26,8 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   next();
 });
+
+app.use('/resources', express.static(__dirname + '/resources'));
 app.use('/api', apiRoutes);
 
 // Socket server

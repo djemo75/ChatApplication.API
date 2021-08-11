@@ -2,7 +2,7 @@ module.exports = (sequelize, DataTypes) => {
   return sequelize.define('users', {
     username: {
       type: DataTypes.STRING,
-      unique: true,
+      unique: 'username',
       allowNull: false,
       validate: {
         isNotNull(value) {
@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     email: {
       type: DataTypes.STRING,
-      unique: true,
+      unique: 'email',
       allowNull: false,
       validate: {
         isEmail: {
@@ -41,6 +41,9 @@ module.exports = (sequelize, DataTypes) => {
     isOnline: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
+    },
+    lastOnlineDate: {
+      type: DataTypes.DATE,
     },
   });
 };

@@ -42,7 +42,7 @@ exports.login = async (req, res, next) => {
   const { username, password } = req.body;
 
   try {
-    const user = await UserService.getUserByCriteria({ username });
+    const user = await UserService.getUserByCriteria({ username }, true);
     if (!user) {
       throw new BaseError('There is no user with this username!', 400);
     }
@@ -101,9 +101,12 @@ exports.getNewRefreshToken = async (req, res, next) => {
     }
 
     // Find user by refresh token
-    const user = await UserService.getUserByCriteria({
-      refreshToken: currentRefreshToken,
-    });
+    const user = await UserService.getUserByCriteria(
+      {
+        refreshToken: currentRefreshToken,
+      },
+      true
+    );
     if (!user) {
       throw new BaseError('Refresh token is invalid', 400);
     }

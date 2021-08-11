@@ -1,10 +1,12 @@
 const router = require('express').Router();
 const AuthRoutes = require('./auth.routes');
 const UserRoutes = require('./user.routes');
-const Sequelize = require('sequelize');
+const ResourceRoutes = require('./resource.routes');
 
 router.use('/auth', AuthRoutes);
+// messageRouter.use('/users/:id/messages', MessageRoutes);
 router.use('/users', UserRoutes);
+router.use('/resources', ResourceRoutes);
 
 // General error handling
 router.use(function (error, req, res, next) {

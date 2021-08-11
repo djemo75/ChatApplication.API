@@ -105,3 +105,6 @@ dist
 
 # DB configuration file
 config.json
+
+# Resources folder
+resources/

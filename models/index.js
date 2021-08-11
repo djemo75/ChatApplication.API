@@ -46,6 +46,7 @@ Object.keys(db).forEach((modelName) => {
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
+// Users - Friendship Relationship
 db.users.hasOne(db.friendships, {
   foreignKey: 'requesterId',
   as: 'requester',
@@ -62,6 +63,35 @@ db.friendships.belongsTo(db.users, {
 db.friendships.belongsTo(db.users, {
   foreignKey: 'addresseeId',
   as: 'addressee',
+});
+
+// Users - Messages Relationship
+db.users.hasOne(db.messages, {
+  foreignKey: 'requesterId',
+  as: 'messageRequester',
+});
+db.users.hasOne(db.messages, {
+  foreignKey: 'addresseeId',
+  as: 'messageAddressee',
+});
+
+db.messages.belongsTo(db.users, {
+  foreignKey: 'requesterId',
+  as: 'messageRequester',
+});
+db.messages.belongsTo(db.users, {
+  foreignKey: 'addresseeId',
+  as: 'messageAddressee',
+});
+
+// Users - Resources Relationship
+db.users.belongsTo(db.resources, { foreignKey: 'avatarId', as: 'avatar' });
+db.users.belongsTo(db.resources, { foreignKey: 'coverId', as: 'cover' });
+
+// Messages - Resources Relationship
+db.messages.belongsTo(db.resources, {
+  foreignKey: 'resourceId',
+  as: 'resource',
 });
 
 module.exports = db;
